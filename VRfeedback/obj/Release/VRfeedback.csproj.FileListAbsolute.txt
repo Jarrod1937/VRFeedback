@@ -1,0 +1,8 @@
+E:\aug_VR_project\VRfeedback\VRfeedback\bin\Release\VRfeedback.exe.config
+E:\aug_VR_project\VRfeedback\VRfeedback\bin\Release\VRfeedback.exe
+E:\aug_VR_project\VRfeedback\VRfeedback\bin\Release\VRfeedback.pdb
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Release\VRfeedback.Form1.resources
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Release\VRfeedback.Properties.Resources.resources
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Release\VRfeedback.csproj.GenerateResource.Cache
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Release\VRfeedback.exe
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Release\VRfeedback.pdb

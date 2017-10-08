@@ -1,0 +1,27 @@
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\bin\Debug\VRfeedback.exe.config
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\bin\Debug\VRfeedback.exe
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\bin\Debug\VRfeedback.pdb
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\obj\Debug\VRfeedback.csprojResolveAssemblyReference.cache
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\obj\Debug\VRfeedback.Form1.resources
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\obj\Debug\VRfeedback.Properties.Resources.resources
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\obj\Debug\VRfeedback.csproj.GenerateResource.Cache
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\obj\Debug\VRfeedback.exe
+c:\users\administrator\documents\visual studio 2015\Projects\VRfeedback\VRfeedback\obj\Debug\VRfeedback.pdb
+E:\aug_VR_project\VRfeedback\VRfeedback\bin\Debug\VRfeedback.exe.config
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.exe
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.pdb
+E:\aug_VR_project\VRfeedback\VRfeedback\bin\Debug\VRfeedback.exe
+E:\aug_VR_project\VRfeedback\VRfeedback\bin\Debug\VRfeedback.pdb
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.csprojResolveAssemblyReference.cache
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.Form1.resources
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.Properties.Resources.resources
+E:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.csproj.GenerateResource.Cache
+G:\aug_VR_project\VRfeedback\VRfeedback\bin\Debug\VRfeedback.exe.config
+G:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.exe
+G:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.pdb
+G:\aug_VR_project\VRfeedback\VRfeedback\bin\Debug\VRfeedback.exe
+G:\aug_VR_project\VRfeedback\VRfeedback\bin\Debug\VRfeedback.pdb
+G:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.csprojResolveAssemblyReference.cache
+G:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.Form1.resources
+G:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.Properties.Resources.resources
+G:\aug_VR_project\VRfeedback\VRfeedback\obj\Debug\VRfeedback.csproj.GenerateResource.Cache
