@@ -2,6 +2,8 @@
 
 Have you ever been playing a game and get hurt, yet you don't care and keep pushing forward? In most games there is no consequence as long as you don't die, if you get hurt that is only a minor aspect of the game. Here, I wanted to take the next step. if you get hurt in the game you get hurt in real life. I am by far not the first person to consider this, but I was unable to find other projects that met my needs. While this is originally intended for VR games, it should work in all games where the memory is readable.
 
+![VRFeedback Preview](https://github.com/Jarrod1937/VRFeedback/blob/master/vrpreview.jpg)
+
 # How it works
 
 The program acts as a memory scanner. Each game, when started gets loaded into memory, and there are a few base/static addresses that are based on fixed offsets from the executable file. These base addresses can hold all kinds of information, but the main one we're interested in is health. Health can be represented in multiple ways, as a 8/16/32/64 bit int, or as a single or double float. Once you know the memory address, simply point the VRFeedback application to it with the appropriate data type, and it will read the value for you. This value is then recorded and watched, and if a decrease happens it maps the decrease to a range of 1-10 (100% down to 92% is 1, 100% down to 20% is 8...etc). This information is sent via serial.
