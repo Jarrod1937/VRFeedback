@@ -33,3 +33,15 @@ I setup the application with the ability to reference more than one port on the 
 # Can I run my game fullscreen?
 
 Yes, you can definitely run the game fullscreen without having to alt+tab out to start the program. I designed it so that it constantly looks for the game process in the background and when it finds it, it attaches and reads the value. All you need to have is a value COM port setup. Simply load your game preset, start serial, then start your game.
+
+# Can I use this for online games?
+
+I would not recommend using this for online games. First, a lot of online games have cheat protection, so you may not even be able to read the memory. Second, those that still allow you to read the memory, may still be triggered by such attempts. Thus, you may be banned for online games for using such a program, as they would think you're attempting to cheat, even though that is not the case.
+
+# Legal
+
+I release this software under no license, nothing. You can consider it public domain freeware. Considering the possibilities of mis-use with this software though:
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Likewise I take no responsibility for any physical harm that may take place by whatever feedback mechanism you use. By downloading and using this software you release me (the original author) of any liability whatsoever in any civil court.
