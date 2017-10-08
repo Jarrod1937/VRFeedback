@@ -48,6 +48,24 @@ In this case, this software isn't for you. It is not a commercial application th
 
 You cannot run this application on a 32 bit machine. It is designed to read 32 bit and 64 bit games. The latter requires that the executable be compiled as a 64 bit application to gain access to the expanded memory space provided by 64 bit games.
 
+# What is the preset file format?
+
+VRFeedback looks for a preset file in a subdirectory of the executable named 'applications'. The file has the following format:
+memory address|data type|range min|range max|process name|bit size
+
+bit size:
+0 = 32, 1 = 64
+
+data type:
+0 = Int16
+1 = Int32
+2 = Int64
+3 = double float
+4 = single float
+
+example:
+7FF6C85E6F50|4|0|1|SkyrimSE|1
+
 # Legal
 
 I release this software under no license, nothing. You can consider it public domain freeware. Considering the possibilities of mis-use with this software though:
