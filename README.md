@@ -1,6 +1,6 @@
 # VRFeedback - Summary
 
-Have you ever been playing a game and get hurt, yet you don't care and keep pushing forward? In most games there is no consequence as long as you don't die, if you get hurt that is only a minor aspect of the game. Here, I wanted to take the next step. if you get hurt in the game you get hurt in real life. I am by far not the first person to consider this, but I was unable to find other projects that met my needs.
+Have you ever been playing a game and get hurt, yet you don't care and keep pushing forward? In most games there is no consequence as long as you don't die, if you get hurt that is only a minor aspect of the game. Here, I wanted to take the next step. if you get hurt in the game you get hurt in real life. I am by far not the first person to consider this, but I was unable to find other projects that met my needs. While this is originally intended for VR games, it should work in all games where the memory is readable.
 
 # How it works
 
