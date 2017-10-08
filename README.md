@@ -38,6 +38,10 @@ Yes, you can definitely run the game fullscreen without having to alt+tab out to
 
 I would not recommend using this for online games. First, a lot of online games have cheat protection, so you may not even be able to read the memory. Second, those that still allow you to read the memory, may still be triggered by such attempts. Thus, you may be banned for online games for using such a program, as they would think you're attempting to cheat, even though that is not the case.
 
+# I don't know how to compile the code to run it
+
+In this case, this software isn't for you. It is not a commercial application that is ready to go. While others can share the preset files, the actual software is only part of the equation. You also need to have a device at the other end of the serial to parse and act upon it. With that said, you can navigate to the bin/release directory and use the compiled version there. However, it will likely not do you much good as you still need the other portion.
+
 # Legal
 
 I release this software under no license, nothing. You can consider it public domain freeware. Considering the possibilities of mis-use with this software though:
