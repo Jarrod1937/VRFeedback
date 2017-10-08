@@ -55,10 +55,8 @@ memory address|data type|range min|range max|process name|bit size
 
 bit size:
 0 = 32, 1 = 64
-
 data type:
 0 = Int16, 1 = Int32, 2 = Int64, 3 = double float, 4 = single float
-
 example:
 7FF6C85E6F50|4|0|1|SkyrimSE|1
 
