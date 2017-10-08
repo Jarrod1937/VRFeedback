@@ -32,7 +32,7 @@ I setup the application with the ability to reference more than one port on the 
 
 # Can I run my game fullscreen?
 
-Yes, you can definitely run the game fullscreen without having to alt+tab out to start the program. I designed it so that it constantly looks for the game process in the background and when it finds it, it attaches and reads the value. All you need to have is a value COM port setup. Simply load your game preset, start serial, then start your game.
+Yes, you can definitely run the game fullscreen without having to alt+tab out to start the program. I designed it so that it constantly looks for the game process in the background and when it finds it, it attaches and reads the value. All you need to have is a valid COM port setup. Simply load your game preset, start serial, then start your game.
 
 # Can I use this for online games?
 
@@ -44,7 +44,7 @@ In this case, this software isn't for you. It is not a commercial application th
 
 # I have a 32 bit computer, can I run it?
 
-You cannot run this application on a 32 bit machine. It is designed to read by 32 bit and 64 bit games. The latter requires that the executable be compiled as a 64 bit application to gain access to the expanded memory space provided by 64 bit games.
+You cannot run this application on a 32 bit machine. It is designed to read 32 bit and 64 bit games. The latter requires that the executable be compiled as a 64 bit application to gain access to the expanded memory space provided by 64 bit games.
 
 # Legal
 
