@@ -82,19 +82,18 @@ process name|bitsize
 Every line after must be:
 memory address/offset|type|range min|range max|offset or address bool (0/1)|when to send|state string (if used, else an empty string works)
 
+```
 bit size: 0 = 32, 1 = 64
-
 data type: 0 = Int16, 1 = Int32, 2 = Int64, 3 = double float, 4 = single float
-
 When to send: 0 = decrease, 1 = increase, 2 = change, 3 = continuous, 4 = state
-
-
+```
 example:
 
+```
 SkyrimSE|1
 1E06F50|4|0|1|0|0|
 2F54B3C|4|0|1|0|4|1
-
+```
 
 # Legal
 
