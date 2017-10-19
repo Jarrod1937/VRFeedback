@@ -6,7 +6,7 @@ Originally intended to just provide feedback when getting hurt in a game, this a
 
 # How it works
 
-The program acts as a memory scanner. Each game, when started gets loaded into memory, and there are a few base/static addresses that are based on fixed offsets from the executable file. These base addresses can hold all kinds of information, but the main one we're interested in is health. Health can be represented in multiple ways, as a 8/16/32/64 bit int, or as a single or double float. Once you know the memory address, simply point the VRFeedback application to it with the appropriate data type, and it will read the value for you. This value is then recorded and watched, and if the 'when' condition is triggered, the state information is converted to a 4 bit int along with a 4 bit port number as a single byte. This information is sent via serial.
+The program acts as a memory scanner. Each game, when started gets loaded into memory, and there are a few base/static addresses that are based on fixed offsets from the executable files base address. These static addresses can hold all kinds of information, such as player position, wind speed, player state...etc. For this explaination we'll look at health. Health can be represented in multiple ways, as a 8/16/32/64 bit int, or as a single or double float. Once you know the memory address, simply point the VRFeedback application to it with the appropriate data type, and it will read the value for you. This value is then recorded and watched, and if the 'when' condition is triggered, the state information is converted to a 4 bit int along with a 4 bit port number as a single byte. This information is sent via serial.
 
 # What to do with the serial data?
 
