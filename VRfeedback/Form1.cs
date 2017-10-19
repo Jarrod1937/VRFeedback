@@ -15,9 +15,9 @@ namespace VRfeedback
         private string processName = "";
         private bool processFound = false;
         private IntPtr processHandle = IntPtr.Zero;
-        private Int64 memoryAddress = 0;
+        private Int64[] memoryAddress = new Int64[4];
+        private Int64 baseAddress;
         private Char fileDelim = '|';
-        private uint decreaseIncrement = 0;
         private bool serialStarted = false;
 
         // 0 = 32, 1 = 64
@@ -30,22 +30,69 @@ namespace VRfeedback
          3 = double float
          4 = single float
          */ 
-        Int16 valueType = 0;
+        private Int16[] valueType = new Int16[4];
+
+        // 0 = offset, 1 =  memory address
+        private Int32[] offsetMemAdd = new Int32[4];
+
+        // Record the 'when' to send serial output settings per item
+        private Int32[] whenVals = new Int32[4];
 
         // Buffers based on value type
-        private Int16 int16Buff = 0;
-        private Int32 int32Buff = 0;
-        private Int64 int64Buff = 0;
-        private double doubleBuff = 0.00;
-        private Single singleBuff = 0.00F;
+        private Int16[] int16Buff = new Int16[4];
+        private Int32[] int32Buff = new Int32[4];
+        private Int64[] int64Buff = new Int64[4];
+        private double[] doubleBuff = new double[4];
+        private Single[] singleBuff = new Single[4];
 
         // Range holders
-        private Int16[] int16Range = new Int16[2];
-        private Int32[] int32Range = new Int32[2];
-        private Int64[] int64Range = new Int64[2];
-        private double[] doubleRange = new double[2];
-        private Single[] singleRange = new Single[2];
+        private Int16[,] int16Range = new Int16[4,2];
+        private Int32[,] int32Range = new Int32[4,2];
+        private Int64[,] int64Range = new Int64[4,2];
+        private double[,] doubleRange = new double[4,2];
+        private Single[,] singleRange = new Single[4,2];
 
+        // State Holders
+        private Int16[,] int16States = new Int16[4,16];
+        private Int32[,] int32States = new Int32[4,16];
+        private Int64[,] int64States = new Int64[4,16];
+        private double[,] doubleStates = new double[4,16];
+        private Single[,] singleStates = new Single[4,16];
+
+        // State count holders
+        private Int16[] int16StateCount = new Int16[4] { 0, 0, 0, 0};
+        private Int16[] int32StateCount = new Int16[4] { 0, 0, 0, 0 };
+        private Int16[] int64StateCount = new Int16[4] { 0, 0, 0, 0 };
+        private Int16[] doubleStateCount = new Int16[4] { 0, 0, 0, 0 };
+        private Int16[] singleStateCount = new Int16[4] { 0, 0, 0, 0 };
+
+        private void resetStateCount()
+        {
+            for (int i = 0; i < int16StateCount.Count(); i++)
+            {
+                int16StateCount[i] = 0;
+            }
+
+            for (int i = 0; i < int32StateCount.Count(); i++)
+            {
+                int32StateCount[i] = 0;
+            }
+
+            for (int i = 0; i < int64StateCount.Count(); i++)
+            {
+                int64StateCount[i] = 0;
+            }
+
+            for (int i = 0; i < doubleStateCount.Count(); i++)
+            {
+                doubleStateCount[i] = 0;
+            }
+
+            for (int i = 0; i < singleStateCount.Count(); i++)
+            {
+                singleStateCount[i] = 0;
+            }
+        }
 
 
         // Read permission constant
@@ -78,12 +125,6 @@ namespace VRfeedback
             if (Properties.Settings.Default.fileToLoad.Length > 0)
             {
                 loadProcessFile(Properties.Settings.Default.fileToLoad);
-            }
-
-            if (Properties.Settings.Default.portCount >= 0)
-            {
-                Int32 portIndex = Properties.Settings.Default.portCount;
-                cbPorts.SelectedIndex = Properties.Settings.Default.portCount;
             }
 
             if (Properties.Settings.Default.ComPort.Length > 0)
@@ -140,18 +181,8 @@ namespace VRfeedback
             _serialPort.Close();
         }
 
-        private void serialSend(Int16 intensityVal)
+        private void serialSend(Int16 intensityVal, Int16 portVal)
         {
-            // Randomly bounce between available ports... If 1, default to 1
-            // The port numbers are referenced by 0 based index
-            Int16 portVal = 0;
-
-            if (cbPorts.SelectedIndex > 0)
-            {
-                Random rand = new Random();
-                portVal = (Int16)rand.Next(0, cbPorts.SelectedIndex);
-            }
-
             byte serialByte = serialByteCalc(portVal, intensityVal);
             serialOutput(serialByte);
         }
@@ -185,8 +216,16 @@ namespace VRfeedback
             try
             {
                 process = Process.GetProcessesByName(processName)[0];
-                processHandle = OpenProcess(PROCESS_WM_READ, false, process.Id);
-                lpFound.Text = "Yes";
+
+                // Only need to do this code once per new detection
+                if (processFound == false)
+                {
+                    processHandle = OpenProcess(PROCESS_WM_READ, false, process.Id);
+                    baseAddress = (Int64)process.MainModule.BaseAddress;
+                    //baseAddress = (Int64)process.MainModule.EntryPointAddress;
+
+                    lpFound.Text = "Yes";
+                }
                 processFound = true;
 
             }
@@ -204,83 +243,96 @@ namespace VRfeedback
             // Process bool is true and our handle is not a zero pointer (null)
             if(processFound == true && processHandle != IntPtr.Zero)
             {
-                string[] outputValue = { "", "" };
-
-                /*
-                 0 = Int16
-                 1 = Int32
-                 2 = Int64
-                 3 = double float
-                 4 = single float
-                 */
-
-                // Parse memory region based on selected data type
-                if (valueType == 0)
+                if(checkActive1.Checked)
                 {
-                    outputValue = readCompareInt16();
-                }
-                else if(valueType == 1)
-                {
-                    outputValue = readCompareInt32();
-                }
-                else if(valueType == 2)
-                {
-                    outputValue = readCompareInt64();
-                }
-                else if(valueType == 3)
-                {
-                    outputValue = readCompareDouble();
-                }
-                else if (valueType == 4)
-                {
-                    outputValue = readCompareSingle();
+                    processValueAction(0);
                 }
 
-                lcValue.Text = outputValue[0];
-
-                // If not empty string, our value has decreased
-                if(outputValue[1] != "")
+                if (checkActive2.Checked)
                 {
-                    decreaseIncrement++;
-
-                    // Incrementing rolls over value automatically.
-                    // Do it here just in case... 
-                    // Though, highly unlikely someone's
-                    // session would exceed 4,294,967,294.
-                    if (decreaseIncrement >= 4294967294)
-                    {
-                        decreaseIncrement = 0;
-                    }
-
-                    lValueDecrease.Text = decreaseIncrement + " times";
-
-                    // Take the value and convert to int16
-                    Int16 intValDecrease = 0;
-                    try
-                    {
-                        intValDecrease = Convert.ToInt16(outputValue[1]);
-                    }
-                    catch
-                    {
-                        // Don't care, value above is already initialized to 0
-                    }
-
-                    // Take the inverse of the decrease.
-                    // E.G. The value decrease to 90%, we want to say the value decrease by 10%
-                    intValDecrease = (Int16)(100 - intValDecrease);
-
-                    // Next we simply want to scale the 10's range to 4 bit range (0-15)
-                    intValDecrease = (Int16)(intValDecrease / 10);
-
-                    if (intValDecrease < 0)
-                    {
-                        // We know some decrease occured, so if the value is < 0, set to 1
-                        intValDecrease = 1;
-                    }
-
-                    serialSend(intValDecrease);
-
+                    processValueAction(1);
                 }
+
+                if (checkActive3.Checked)
+                {
+                    processValueAction(2);
+                }
+
+                if (checkActive4.Checked)
+                {
+                    processValueAction(3);
+                }
+            }
+        }
+
+        private void processValueAction(Int32 IndexVal)
+        {
+            string[] outputValue = { "", "" };
+
+            /*
+             0 = Int16
+             1 = Int32
+             2 = Int64
+             3 = double float
+             4 = single float
+             */
+
+            // Parse memory region based on selected data type
+            if (valueType[IndexVal] == 0)
+            {
+                outputValue = readCompareInt16(IndexVal);
+            }
+            else if (valueType[IndexVal] == 1)
+            {
+                outputValue = readCompareInt32(IndexVal);
+            }
+            else if (valueType[IndexVal] == 2)
+            {
+                outputValue = readCompareInt64(IndexVal);
+            }
+            else if (valueType[IndexVal] == 3)
+            {
+                outputValue = readCompareDouble(IndexVal);
+            }
+            else if (valueType[IndexVal] == 4)
+            {
+                outputValue = readCompareSingle(IndexVal);
+            }
+
+            switch(IndexVal)
+            {
+                case 0:
+                    lcValue1.Text = outputValue[0];
+                    break;
+                case 1:
+                    lcValue2.Text = outputValue[0];
+                    break;
+                case 2:
+                    lcValue3.Text = outputValue[0];
+                    break;
+                case 3:
+                    lcValue4.Text = outputValue[0];
+                    break;
+            }
+            
+
+            // If not empty string, our value has decreased
+            if (outputValue[1] != "")
+            {
+
+                // Take the value and convert to int16
+                Int16 intValChange = 0;
+                try
+                {
+                    intValChange = Math.Abs(Convert.ToInt16(outputValue[1]));
+                }
+                catch
+                {
+                    // Don't care, value above is already initialized to 0
+                }
+
+                serialSend(intValChange, (Int16)IndexVal);
+
             }
         }
 
@@ -334,204 +386,941 @@ namespace VRfeedback
             tempBoolPort[2] = tempBoolintensity[5];
             tempBoolPort[3] = tempBoolintensity[4];
 
+            // Reverse Port Bits
+            bool[] TempBool = new bool[4];
+
+            TempBool[0] = tempBoolPort[4];
+            TempBool[1] = tempBoolPort[5];
+            TempBool[2] = tempBoolPort[6];
+            TempBool[3] = tempBoolPort[7];
+
+            tempBoolPort[4] = TempBool[3];
+            tempBoolPort[5] = TempBool[2];
+            tempBoolPort[6] = TempBool[1];
+            tempBoolPort[7] = TempBool[0];
+
             // Initialize bit array with bool array
             BitArray finalNum = new BitArray(tempBoolPort);
             
             // Convert bool array to byte
             byte finalByte = ConvertToByte(finalNum);
+            string listingStr = portVal + ", " + intensityVal + ", " + Convert.ToString(finalByte, 2).PadLeft(8, '0');
 
-            // Display byte as binary string, good for debugging
-            label3.Text = Convert.ToString(finalByte, 2).PadLeft(8, '0');
+            switch (portVal)
+            {
+                case 0:
+                    lLastByte1.Text = listingStr;
+                    break;
+                case 1:
+                    lLastByte2.Text = listingStr;
+                    break;
+                case 2:
+                    lLastByte3.Text = listingStr;
+                    break;
+                case 3:
+                    lLastByte4.Text = listingStr;
+                    break;
+            }
 
             return finalByte;
+        }
+
+        private Int32 returnWhenVal(Int32 IndexVal)
+        {
+            Int32 returnVal = 0;
+
+            if (IndexVal == 0)
+            {
+                returnVal = cbWhen1.SelectedIndex;
+            }
+            else if (IndexVal == 1)
+            {
+                returnVal = cbWhen2.SelectedIndex;
+            }
+            else if (IndexVal == 2)
+            {
+                returnVal = cbWhen3.SelectedIndex;
+            }
+            else if (IndexVal == 3)
+            {
+                returnVal = cbWhen4.SelectedIndex;
+            }
+
+            if (returnVal < 0)
+            {
+                returnVal = 0;
+            }
+
+            return returnVal;
+
+        }
+
+        private Int16 returnStateMatch(Int32 IndexVal, Int16 Int16Val, Int32 Int32Val, Int64 Int64Val, double doubleVal, Single singleVal)
+        {
+            Int16 returnVal = -1;
+
+            if (valueType[IndexVal] == 0)
+            {
+                Int16 loopStart = 0;
+                Int16 loopEnd = int16StateCount[IndexVal];
+
+                while(loopStart < loopEnd)
+                {
+                    if(int16States[IndexVal, loopStart] == Int16Val)
+                    {
+                        return loopStart;
+                    }
+
+                    loopStart++;
+                }
+            }
+            else if (valueType[IndexVal] == 1)
+            {
+                Int16 loopStart = 0;
+                Int16 loopEnd = int32StateCount[IndexVal];
+
+                while (loopStart < loopEnd)
+                {
+                    if (int32States[IndexVal, loopStart] == Int32Val)
+                    {
+                        return loopStart;
+                    }
+
+                    loopStart++;
+                }
+            }
+            else if (valueType[IndexVal] == 2)
+            {
+                Int16 loopStart = 0;
+                Int16 loopEnd = int64StateCount[IndexVal];
+
+                while (loopStart < loopEnd)
+                {
+                    if (int64States[IndexVal, loopStart] == Int64Val)
+                    {
+                        return loopStart;
+                    }
+
+                    loopStart++;
+                }
+            }
+            else if (valueType[IndexVal] == 3)
+            {
+                Int16 loopStart = 0;
+                Int16 loopEnd = doubleStateCount[IndexVal];
+
+                while (loopStart < loopEnd)
+                {
+                    if (doubleStates[IndexVal, loopStart] == doubleVal)
+                    {
+                        return loopStart;
+                    }
+
+                    loopStart++;
+                }
+            }
+            else if (valueType[IndexVal] == 4)
+            {
+                Int16 loopStart = 0;
+                Int16 loopEnd = singleStateCount[IndexVal];
+
+                while (loopStart < loopEnd)
+                {
+                    if (singleStates[IndexVal, loopStart] == singleVal)
+                    {
+                        return loopStart;
+                    }
+
+                    loopStart++;
+                }
+            }
+
+
+            return returnVal;
+        }
+
+        private byte[] readMemoryBytes(Int32 IndexVal, Int32 ByteCount)
+        {
+            int bytesRead = 0;
+            byte[] buffer = new byte[ByteCount];
+
+            Int64 tempAddress = (Int64)memoryAddress[IndexVal];
+
+            if (offsetMemAdd[IndexVal] == 0)
+            {
+                tempAddress += (Int64)baseAddress;
+            }
+
+            if (bitSize == 0)
+            {
+                ReadProcessMemory(processHandle, (Int32)tempAddress, buffer, buffer.Length, ref bytesRead);
+            }
+            else
+            {
+                ReadProcessMemory64(processHandle, tempAddress, buffer, buffer.Length, ref bytesRead);
+            }
+
+            return buffer;
         }
 
         // Read and convert methods
         // They read the raw bytes, convert these to their data type
         // compare if value has decreased, and return string representation
 
-        private string[] readCompareInt16()
+        private string[] readCompareInt16(Int32 IndexVal)
         {
+            Int32 whenVal = whenVals[IndexVal];
             string[] returnArray = { "", "" };
-            int bytesRead = 0;
-            byte[] buffer = new byte[2];
-            if (bitSize == 0)
-            {
-                ReadProcessMemory(processHandle, (Int32)memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
-            else
-            {
-                ReadProcessMemory64(processHandle, memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
+
+            byte[] buffer = readMemoryBytes(IndexVal, 2);
+
             Int16 tempVal = BitConverter.ToInt16(buffer, 0);
 
             // Is read value inside range given?
-            if(tempVal >= int16Range[0] && tempVal <= int16Range[1])
+            if(tempVal >= int16Range[IndexVal,0] && tempVal <= int16Range[IndexVal, 1])
             { 
                 returnArray[0] = tempVal.ToString();
 
-                if (tempVal < int16Buff)
+
+
+                if (whenVal == 0)
                 {
-                    returnArray[1] = (((int)Math.Floor(((tempVal / int16Buff) * 100.0) / 10.0)) * 10).ToString();
+                    if (tempVal < int16Buff[IndexVal])
+                    {
+                       Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / int16Buff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                }
+                else if (whenVal == 1)
+                {
+                    if (tempVal > int16Buff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (int16Buff[IndexVal] == 0)
+                        {
+                            int16Buff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / int16Buff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 2)
+                {
+                    if (tempVal < int16Buff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / int16Buff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                    else if (tempVal > int16Buff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (int16Buff[IndexVal] == 0)
+                        {
+                            int16Buff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / int16Buff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 3)
+                {
+                    // Max - Min = max range. EX. 100 - (-100) = 200, 100 - 10 = 70...etc
+                    double segmentVal = (int16Range[IndexVal, 1] - int16Range[IndexVal, 0]) / 16.00;
+                    Int32 segementedVal = (int)(Math.Round(tempVal / segmentVal));
+
+                    if (segementedVal > 15)
+                    {
+                        segementedVal = 15;
+                    }
+
+                    returnArray[1] = (segementedVal).ToString();
+                }
+                else
+                {
+                    Int16 stateMatch = returnStateMatch(IndexVal, tempVal, 0, 0, 0, 0);
+
+                    if(stateMatch != -1)
+                    {
+                        returnArray[1] = stateMatch.ToString();
+                    }
                 }
 
-                int16Buff = tempVal;
-                loutOfRange.Text = "--";
-            }
-            else
-            {
-                loutOfRange.Text = "Yes";
+                int16Buff[IndexVal] = tempVal;
             }
 
             return returnArray;
         }
 
-        private string[] readCompareInt32()
+        private string[] readCompareInt32(Int32 IndexVal)
         {
+            Int32 whenVal = whenVals[IndexVal];
             string[] returnArray = { "", "" };
-            int bytesRead = 0;
-            byte[] buffer = new byte[4];
-            if (bitSize == 0)
-            {
-                ReadProcessMemory(processHandle, (Int32)memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
-            else
-            {
-                ReadProcessMemory64(processHandle, memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
+
+            byte[] buffer = readMemoryBytes(IndexVal, 4);
             Int32 tempVal = BitConverter.ToInt32(buffer, 0);
 
             // Is read value inside range given?
-            if (tempVal >= int32Range[0] && tempVal <= int32Range[1])
+            if (tempVal >= int32Range[IndexVal,0] && tempVal <= int32Range[IndexVal,1])
             {
                 returnArray[0] = tempVal.ToString();
 
-                if (tempVal < int32Buff)
+                if (whenVal == 0)
                 {
-                    double percentVal = (((double)tempVal / (double)int32Buff) * 100.0);
-                    Int32 floorVal = (int)Math.Floor(percentVal / 10.0);
-                    returnArray[1] = (floorVal * 10).ToString();
+                    if (tempVal < int32Buff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / int32Buff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                }
+                else if (whenVal == 1)
+                {
+                    if (tempVal > int32Buff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (int32Buff[IndexVal] == 0)
+                        {
+                            int32Buff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / int32Buff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 2)
+                {
+                    if (tempVal < int32Buff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / int32Buff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                    else if (tempVal > int32Buff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (int32Buff[IndexVal] == 0)
+                        {
+                            int32Buff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / int32Buff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 3)
+                {
+                    double segmentVal = (int32Range[IndexVal, 1] - int32Range[IndexVal, 0]) / 16.00;
+                    Int32 segementedVal = (int)(Math.Round((tempVal - int32Range[IndexVal, 0]) / segmentVal));
+
+                    if (segementedVal > 15)
+                    {
+                        segementedVal = 15;
+                    }
+
+                    returnArray[1] = (segementedVal).ToString();
+                }
+                else
+                {
+                    Int16 stateMatch = returnStateMatch(IndexVal, 0, tempVal, 0, 0, 0);
+
+                    if (stateMatch != -1)
+                    {
+                        returnArray[1] = stateMatch.ToString();
+                    }
                 }
 
-                int32Buff = tempVal;
-                loutOfRange.Text = "--";
-            }
-            else
-            {
-                loutOfRange.Text = "Yes";
+                int32Buff[IndexVal] = tempVal;
             }
 
             return returnArray;
         }
 
-        private string[] readCompareInt64()
+        private string[] readCompareInt64(Int32 IndexVal)
         {
+            Int32 whenVal = whenVals[IndexVal];
             string[] returnArray = { "", "" };
-            int bytesRead = 0;
-            byte[] buffer = new byte[8];
-            if (bitSize == 0)
-            {
-                ReadProcessMemory(processHandle, (Int32)memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
-            else
-            {
-                ReadProcessMemory64(processHandle, memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
+
+            byte[] buffer = readMemoryBytes(IndexVal, 8);
             Int64 tempVal = BitConverter.ToInt64(buffer, 0);
 
             // Is read value inside range given?
-            if (tempVal >= int64Range[0] && tempVal <= int64Range[1])
+            if (tempVal >= int64Range[IndexVal,0] && tempVal <= int64Range[IndexVal,1])
             {
                 returnArray[0] = tempVal.ToString();
 
-                if (tempVal < int64Buff)
+                if (whenVal == 0)
                 {
-                    returnArray[1] = (((int)Math.Floor(((tempVal / int64Buff) * 100.0) / 10.0)) * 10).ToString();
+                    if (tempVal < int64Buff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / int64Buff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                }
+                else if (whenVal == 1)
+                {
+                    if (tempVal > int64Buff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (int64Buff[IndexVal] == 0)
+                        {
+                            int64Buff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / int64Buff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 2)
+                {
+                    if (tempVal < int64Buff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / int64Buff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                    else if (tempVal > int64Buff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (int64Buff[IndexVal] == 0)
+                        {
+                            int64Buff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / int64Buff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 3)
+                {
+                    double segmentVal = (int64Range[IndexVal, 1] - int64Range[IndexVal, 0]) / 16.00;
+                    Int32 segementedVal = (int)(Math.Round((tempVal - int64Range[IndexVal, 0]) / segmentVal));
+
+                    if (segementedVal > 15)
+                    {
+                        segementedVal = 15;
+                    }
+
+                    returnArray[1] = (segementedVal).ToString();
+                }
+                else
+                {
+                    Int16 stateMatch = returnStateMatch(IndexVal, 0, 0, tempVal, 0, 0);
+
+                    if (stateMatch != -1)
+                    {
+                        returnArray[1] = stateMatch.ToString();
+                    }
                 }
 
-                int64Buff = tempVal;
-                loutOfRange.Text = "--";
-            }
-            else
-            {
-                loutOfRange.Text = "Yes";
+
+                int64Buff[IndexVal] = tempVal;
             }
 
             return returnArray;
         }
 
-        private string[] readCompareDouble()
+        private string[] readCompareDouble(Int32 IndexVal)
         {
+            Int32 whenVal = whenVals[IndexVal];
             string[] returnArray = { "", "" };
-            int bytesRead = 0;
-            byte[] buffer = new byte[8];
-            if (bitSize == 0)
-            {
-                ReadProcessMemory(processHandle, (Int32)memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
-            else
-            {
-                ReadProcessMemory64(processHandle, memoryAddress, buffer, buffer.Length, ref bytesRead);
-            }
+
+            byte[] buffer = readMemoryBytes(IndexVal, 8);
             Double tempVal = BitConverter.ToDouble(buffer, 0);
 
             // Is read value inside range given?
-            if (tempVal >= doubleRange[0] && tempVal <= doubleRange[1])
+            if (tempVal >= doubleRange[IndexVal,0] && tempVal <= doubleRange[IndexVal,1])
             {
                 returnArray[0] = tempVal.ToString();
 
-                if (tempVal < doubleBuff)
+                if (whenVal == 0)
                 {
-                    returnArray[1] = (((int)Math.Floor(((tempVal / doubleBuff) * 100.0) / 10.0)) * 10).ToString();
+                    if (tempVal < doubleBuff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / doubleBuff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                }
+                else if (whenVal == 1)
+                {
+                    if (tempVal > doubleBuff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (doubleBuff[IndexVal] == 0)
+                        {
+                            doubleBuff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / doubleBuff[IndexVal]) *100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if(whenVal == 2)
+                {
+                    if (tempVal < doubleBuff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / doubleBuff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                    else if (tempVal > doubleBuff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (doubleBuff[IndexVal] == 0)
+                        {
+                            doubleBuff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / doubleBuff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if (whenVal == 3)
+                {
+                    double segmentVal = (doubleRange[IndexVal, 1] - doubleRange[IndexVal, 0]) / 16.00;
+                    Int32 segementedVal = (int)(Math.Round((tempVal - doubleRange[IndexVal, 0]) / segmentVal));
+
+                    if (segementedVal > 15)
+                    {
+                        segementedVal = 15;
+                    }
+
+                    returnArray[1] = (segementedVal).ToString();
+                }
+                else
+                {
+                    Int16 stateMatch = returnStateMatch(IndexVal, 0, 0, 0, tempVal, 0);
+
+                    if (stateMatch != -1)
+                    {
+                        returnArray[1] = stateMatch.ToString();
+                    }
                 }
 
-                doubleBuff = tempVal;
-                loutOfRange.Text = "--";
+                doubleBuff[IndexVal] = tempVal;
             }
-            else
+
+
+            return returnArray;
+        }
+
+        private string[] readCompareSingle(Int32 IndexVal)
+        {
+            Int32 whenVal = whenVals[IndexVal];
+            string[] returnArray = { "", "" };
+
+            byte[] buffer = readMemoryBytes(IndexVal, 4);
+            Single tempVal = BitConverter.ToSingle(buffer, 0);
+
+            // Is read value inside range given?
+            if (tempVal >= singleRange[IndexVal,0] && tempVal <= singleRange[IndexVal,1])
             {
-                loutOfRange.Text = "Yes";
+                returnArray[0] = tempVal.ToString();
+
+                if (whenVal == 0)
+                {
+                    if (tempVal < singleBuff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / singleBuff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                }
+                else if (whenVal == 1)
+                {
+                    if (tempVal > singleBuff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (singleBuff[IndexVal] == 0)
+                        {
+                            singleBuff[IndexVal] = 1;
+                        }
+
+                        string tempvar = ((int)Math.Floor(((tempVal / singleBuff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                        returnArray[1] = tempvar;
+                    }
+                }
+                else if(whenVal == 2)
+                {
+                    if (tempVal < singleBuff[IndexVal])
+                    {
+                        Int16 intValDecrease = (Int16)(((int)Math.Floor(((tempVal / singleBuff[IndexVal]) * 100.0) / 10.0)) * 10);
+
+                        // Take the inverse of the decrease.
+                        // E.G. The value decrease to 90%, we want to say the value decrease by 10%
+                        intValDecrease = (Int16)(100 - intValDecrease);
+
+                        // Next we simply want to scale the 10's range to 4 bit range (0-15)
+                        intValDecrease = (Int16)(intValDecrease / 10);
+
+                        if (intValDecrease < 0)
+                        {
+                            // We know some decrease occured, so if the value is < 0, set to 1
+                            intValDecrease = 1;
+                        }
+
+                        returnArray[1] = intValDecrease.ToString();
+                    }
+                    else if (tempVal > singleBuff[IndexVal])
+                    {
+
+                        // No divide by zero
+                        if (singleBuff[IndexVal] == 0)
+                        {
+                            singleBuff[IndexVal] = 1;
+                        }
+
+                        returnArray[1] = ((int)Math.Floor(((tempVal / singleBuff[IndexVal]) * 100.0) - 100) / 10).ToString();
+                    }
+                }
+                else if (whenVal == 3)
+                {
+                    double segmentVal = (singleRange[IndexVal, 1] - singleRange[IndexVal, 0]) / 16.00;
+                                        Int32 segementedVal = (int)(Math.Round((tempVal - singleRange[IndexVal, 0]) / segmentVal));
+
+                    if (segementedVal > 15)
+                    {
+                        segementedVal = 15;
+                    }
+
+                    returnArray[1] = (segementedVal).ToString();
+                }
+                else
+                {
+                    Int16 stateMatch = returnStateMatch(IndexVal, 0, 0, 0, 0, tempVal);
+
+                    if (stateMatch != -1)
+                    {
+                        returnArray[1] = stateMatch.ToString();
+                    }
+                }
+
+                singleBuff[IndexVal] = tempVal;
             }
 
             return returnArray;
         }
 
-        private string[] readCompareSingle()
+        private Int16 setStateArray(Int32 IndexVal)
         {
-            string[] returnArray = { "", "" };
-            int bytesRead = 0;
-            byte[] buffer = new byte[4];
+            Int16 returnVal = 0;
+            Int32 typeVal = -1;
+            string stateVal = "";
 
-            if(bitSize == 0)
+            switch (IndexVal)
             {
-                ReadProcessMemory(processHandle, (Int32)memoryAddress, buffer, buffer.Length, ref bytesRead);
+                case 0:
+                    typeVal = cbType1.SelectedIndex;
+                    stateVal = tbStateList1.Text;
+                    break;
+
+                case 1:
+                    typeVal = cbType2.SelectedIndex;
+                    stateVal = tbStateList2.Text;
+                    break;
+
+                case 2:
+                    typeVal = cbType3.SelectedIndex;
+                    stateVal = tbStateList3.Text;
+                    break;
+
+                case 3:
+                    typeVal = cbType4.SelectedIndex;
+                    stateVal = tbStateList4.Text;
+                    break;
             }
-            else
+
+            // Have state information and a proper type
+            if(stateVal.Length > 0 && typeVal != -1)
             {
-                ReadProcessMemory64(processHandle, memoryAddress, buffer, buffer.Length, ref bytesRead);
+                returnVal = parseArray(IndexVal, typeVal, stateVal);
             }
-            
-            Single tempVal = BitConverter.ToSingle(buffer, 0);
 
-            // Is read value inside range given?
-            if (tempVal >= singleRange[0] && tempVal <= singleRange[1])
+            return returnVal;
+        }
+
+        private Int16 parseArray(Int32 IndexVal, Int32 typeVal, string stateVals)
+        {
+
+            Int16 returnVal = 0;
+            Int32 maxStates = 15;
+            String[] stateData = stateVals.Split(',');
+
+
+            if (typeVal == 0)
             {
-                returnArray[0] = tempVal.ToString();
-
-                if (tempVal < singleBuff)
+                Int32 stateLoop = 0;
+                foreach (string stateValue in stateData)
                 {
-                    returnArray[1] = (((int)Math.Floor(((tempVal / singleBuff) * 100.0) / 10.0)) * 10).ToString();
+                    // Don't parse more states than allowed
+                    if(stateLoop > maxStates)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        int16States[IndexVal, stateLoop] = Convert.ToInt16(stateValue);
+                    }
+                    catch
+                    {
+                        returnVal = -1;
+                        break;
+                    }
+
+                    stateLoop++;
                 }
 
-                singleBuff = tempVal;
-                loutOfRange.Text = "--";
+                if(returnVal != -1)
+                {
+                    int16StateCount[IndexVal] = (Int16)stateLoop;
+                }
+                
+
             }
-            else
+            else if (typeVal == 1)
             {
-                loutOfRange.Text = "Yes";
+                Int32 stateLoop = 0;
+                foreach (string stateValue in stateData)
+                {
+                    // Don't parse more states than allowed
+                    if (stateLoop > maxStates)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        int32States[IndexVal, stateLoop] = Convert.ToInt32(stateValue);
+                    }
+                    catch
+                    {
+                        returnVal = -1;
+                        break;
+                    }
+
+                    stateLoop++;
+                }
+
+                if (returnVal != -1)
+                {
+                    int32StateCount[IndexVal] = (Int16)stateLoop;
+                }
+
+            }
+            else if (typeVal == 2)
+            {
+                Int32 stateLoop = 0;
+                foreach (string stateValue in stateData)
+                {
+                    // Don't parse more states than allowed
+                    if (stateLoop > maxStates)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        int64States[IndexVal, stateLoop] = Convert.ToInt64(stateValue);
+                    }
+                    catch
+                    {
+                        returnVal = -1;
+                        break;
+                    }
+
+                    stateLoop++;
+                }
+
+                if (returnVal != -1)
+                {
+                    int64StateCount[IndexVal] = (Int16)stateLoop;
+                }
+            }
+            else if (typeVal == 3)
+            {
+                Int32 stateLoop = 0;
+                foreach (string stateValue in stateData)
+                {
+                    // Don't parse more states than allowed
+                    if (stateLoop > maxStates)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        doubleStates[IndexVal, stateLoop] = Convert.ToDouble(stateValue);
+                    }
+                    catch
+                    {
+                        returnVal = -1;
+                        break;
+                    }
+
+                    stateLoop++;
+                }
+
+                if (returnVal != -1)
+                {
+                    doubleStateCount[IndexVal] = (Int16)stateLoop;
+                }
+            }
+            else if (typeVal == 4)
+            {
+                Int32 stateLoop = 0;
+                foreach (string stateValue in stateData)
+                {
+                    // Don't parse more states than allowed
+                    if (stateLoop > maxStates)
+                    {
+                        break;
+                    }
+
+                    try
+                    {
+                        singleStates[IndexVal, stateLoop] = Convert.ToSingle(stateValue);
+                    }
+                    catch
+                    {
+                        returnVal = -1;
+                        break;
+                    }
+
+                    stateLoop++;
+                }
+
+                if (returnVal != -1)
+                {
+                    singleStateCount[IndexVal] = (Int16)stateLoop;
+                }
             }
 
-            return returnArray;
+            return returnVal;
+
         }
 
         // Button actions
@@ -552,31 +1341,9 @@ namespace VRfeedback
                 return;
             }
 
-            if(tbMemory.Text.Length > 0)
-            {
-                try
-                {
-                    String tempString = tbMemory.Text.ToUpper();
-
-                    // Just incase it has a hex delim
-                    tempString = tempString.Replace("0X", "");
-                    memoryAddress = Convert.ToInt64(tempString, 16);
-                }
-                catch
-                {
-                    MessageBox.Show("Memory Address Invalid");
-                    return;
-                }
-            }
-            else
-            {
-                MessageBox.Show("Memory Address Invalid");
-                return;
-            }
-
             String tempProcessName = tbProcessName.Text.Replace(".exe", "");
 
-            if(tempProcessName.Length == 0)
+            if (tempProcessName.Length == 0)
             {
                 MessageBox.Show("Invalid Process Name");
                 return;
@@ -586,103 +1353,583 @@ namespace VRfeedback
                 processName = tempProcessName;
             }
 
-            if(cbType.SelectedIndex == -1)
-            {
-                MessageBox.Show("Select A Data Type");
-                return;
-            }
-
-            valueType = (Int16)cbType.SelectedIndex;
-
-
-            if (tbRangeMin.Text.Length == 0 || tbRangeMax.Text.Length == 0)
-            {
-                MessageBox.Show("Range is Invalid");
-                return;
-            }
-
-            bool rangeHasError = false;
-            switch(cbType.SelectedIndex)
-            {
-                case 0:
-                    try
-                    {
-                        int16Range[0] = Convert.ToInt16(tbRangeMin.Text);
-                        int16Range[1] = Convert.ToInt16(tbRangeMax.Text);
-                    }
-                    catch
-                    {
-                        rangeHasError = true;
-                    }
-                    break;
-                case 1:
-                    try
-                    {
-                        int32Range[0] = Convert.ToInt32(tbRangeMin.Text);
-                        int32Range[1] = Convert.ToInt32(tbRangeMax.Text);
-                    }
-                    catch
-                    {
-                        rangeHasError = true;
-                    }
-                    break;
-                case 2:
-                    try
-                    {
-                        int64Range[0] = Convert.ToInt64(tbRangeMin.Text);
-                        int64Range[1] = Convert.ToInt64(tbRangeMax.Text);
-                    }
-                    catch
-                    {
-                        rangeHasError = true;
-                    }
-                    break;
-                case 3:
-                    try
-                    {
-                        doubleRange[0] = Convert.ToDouble(tbRangeMin.Text);
-                        doubleRange[1] = Convert.ToDouble(tbRangeMax.Text);
-                    }
-                    catch
-                    {
-                        rangeHasError = true;
-                    }
-                    break;
-                case 4:
-                    try
-                    {
-                        singleRange[0] = Convert.ToSingle(tbRangeMin.Text);
-                        singleRange[1] = Convert.ToSingle(tbRangeMax.Text);
-                    }
-                    catch
-                    {
-                        rangeHasError = true;
-                    }
-                    break;
-                default:
-                    rangeHasError = true;
-                    break;
-            }
-
-            if(rangeHasError == true)
-            {
-                MessageBox.Show("Range is Invalid");
-                return;
-            }
-
-            if(comPortsDrop.SelectedIndex == -1)
+            if (comPortsDrop.SelectedIndex == -1)
             {
                 MessageBox.Show("COM Port Must Be Selected");
                 return;
             }
 
-            if (cbPorts.SelectedIndex == -1)
+            // Lazily copy/paste code verification section for each value
+            // Later can cleanup code to be more compact.
+
+            bool rangeHasError = false;
+
+            //------------//
+            // Section 1 //
+            //-----------//
+            if (checkActive1.Checked)
             {
-                MessageBox.Show("Number of Output Ports Must Be Selected");
-                return;
+
+                if(cbWhen1.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select the 'When' for 1");
+                    return;
+                }
+
+                whenVals[0] = returnWhenVal(0);
+
+                // If when equals 'on state'
+                if(whenVals[0] == 4)
+                {
+                    Int16 stateStatus = setStateArray(0);
+
+                    if(stateStatus != 0)
+                    {
+                        MessageBox.Show("You have state selected for 1, but the state list is not valid");
+                        resetStateCount();
+                        return;
+                    }
+                }
+
+                if (tbMemory1.Text.Length > 0)
+                {
+                    try
+                    {
+                        String tempString = tbMemory1.Text.ToUpper();
+
+                        // Just incase it has a hex delim
+                        tempString = tempString.Replace("0X", "");
+                        memoryAddress[0] = Convert.ToInt64(tempString, 16);
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Memory Address Invalid, 1");
+                        return;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Memory Address Invalid, 1");
+                    return;
+                }
+
+                if (cbType1.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select A Data Type, 1");
+                    return;
+                }
+
+                valueType[0] = (Int16)cbType1.SelectedIndex;
+
+                if (cbOffsetAdd1.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select if value is offset or memory address, 1");
+                    return;
+                }
+
+                offsetMemAdd[0] = cbOffsetAdd1.SelectedIndex;
+
+                if (tbRangeMin1.Text.Length == 0 || tbRangeMax1.Text.Length == 0)
+                {
+                    MessageBox.Show("Range 1 is Invalid");
+                    return;
+                }
+
+                switch (cbType1.SelectedIndex)
+                {
+                    case 0:
+                        try
+                        {
+                            int16Range[0, 0] = Convert.ToInt16(tbRangeMin1.Text);
+                            int16Range[0, 1] = Convert.ToInt16(tbRangeMax1.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 1:
+                        try
+                        {
+                            int32Range[0, 0] = Convert.ToInt32(tbRangeMin1.Text);
+                            int32Range[0, 1] = Convert.ToInt32(tbRangeMax1.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 2:
+                        try
+                        {
+                            int64Range[0, 0] = Convert.ToInt64(tbRangeMin1.Text);
+                            int64Range[0, 1] = Convert.ToInt64(tbRangeMax1.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 3:
+                        try
+                        {
+                            doubleRange[0, 0] = Convert.ToDouble(tbRangeMin1.Text);
+                            doubleRange[0, 1] = Convert.ToDouble(tbRangeMax1.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 4:
+                        try
+                        {
+                            singleRange[0, 0] = Convert.ToSingle(tbRangeMin1.Text);
+                            singleRange[0, 1] = Convert.ToSingle(tbRangeMax1.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    default:
+                        rangeHasError = true;
+                        break;
+                }
+
+                if (rangeHasError == true)
+                {
+                    MessageBox.Show("Range 1 is Invalid");
+                    return;
+                }
+
             }
 
-            Properties.Settings.Default.portCount = cbPorts.SelectedIndex;
+            //------------//
+            // Section 2 //
+            //-----------//
+            if (checkActive2.Checked)
+            {
+                if (cbWhen2.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select the 'When' for 2");
+                    return;
+                }
+
+                whenVals[1] = returnWhenVal(1);
+
+                // If when equals 'on state'
+                if (whenVals[1] == 4)
+                {
+                    Int16 stateStatus = setStateArray(1);
+
+                    if (stateStatus != 0)
+                    {
+                        MessageBox.Show("You have state selected for 2, but the state list is not valid");
+                        resetStateCount();
+                        return;
+                    }
+                }
+
+                if (tbMemory2.Text.Length > 0)
+                {
+                    try
+                    {
+                        String tempString = tbMemory2.Text.ToUpper();
+
+                        // Just incase it has a hex delim
+                        tempString = tempString.Replace("0X", "");
+                        memoryAddress[1] = Convert.ToInt64(tempString, 16);
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Memory Address Invalid, 2");
+                        return;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Memory Address Invalid, 2");
+                    return;
+                }
+
+                if (cbType2.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select A Data Type, 2");
+                    return;
+                }
+
+                valueType[1] = (Int16)cbType2.SelectedIndex;
+
+                if (cbOffsetAdd2.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select if value is offset or memory address, 2");
+                    return;
+                }
+
+                offsetMemAdd[1] = cbOffsetAdd2.SelectedIndex;
+
+                if (tbRangeMin2.Text.Length == 0 || tbRangeMax2.Text.Length == 0)
+                {
+                    MessageBox.Show("Range 2 is Invalid");
+                    return;
+                }
+
+                rangeHasError = false;
+                switch (cbType2.SelectedIndex)
+                {
+                    case 0:
+                        try
+                        {
+                            int16Range[1, 0] = Convert.ToInt16(tbRangeMin2.Text);
+                            int16Range[1, 1] = Convert.ToInt16(tbRangeMax2.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 1:
+                        try
+                        {
+                            int32Range[1, 0] = Convert.ToInt32(tbRangeMin2.Text);
+                            int32Range[1, 1] = Convert.ToInt32(tbRangeMax2.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 2:
+                        try
+                        {
+                            int64Range[1, 0] = Convert.ToInt64(tbRangeMin2.Text);
+                            int64Range[1, 1] = Convert.ToInt64(tbRangeMax2.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 3:
+                        try
+                        {
+                            doubleRange[1, 0] = Convert.ToDouble(tbRangeMin2.Text);
+                            doubleRange[1, 1] = Convert.ToDouble(tbRangeMax2.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 4:
+                        try
+                        {
+                            singleRange[1, 0] = Convert.ToSingle(tbRangeMin2.Text);
+                            singleRange[1, 1] = Convert.ToSingle(tbRangeMax2.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    default:
+                        rangeHasError = true;
+                        break;
+                }
+
+                if (rangeHasError == true)
+                {
+                    MessageBox.Show("Range 2 is Invalid");
+                    return;
+                }
+
+            }
+
+            //------------//
+            // Section 3 //
+            //-----------//
+
+            if (checkActive3.Checked)
+            {
+                if (cbWhen3.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select the 'When' for 3");
+                    return;
+                }
+
+                whenVals[2] = returnWhenVal(2);
+
+                // If when equals 'on state'
+                if (whenVals[2] == 4)
+                {
+                    Int16 stateStatus = setStateArray(2);
+
+                    if (stateStatus != 0)
+                    {
+                        MessageBox.Show("You have state selected for 3, but the state list is not valid");
+                        resetStateCount();
+                        return;
+                    }
+                }
+
+
+                if (tbMemory3.Text.Length > 0)
+                {
+                    try
+                    {
+                        String tempString = tbMemory3.Text.ToUpper();
+
+                        // Just incase it has a hex delim
+                        tempString = tempString.Replace("0X", "");
+                        memoryAddress[2] = Convert.ToInt64(tempString, 16);
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Memory Address Invalid, 3");
+                        return;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Memory Address Invalid, 3");
+                    return;
+                }
+
+                if (cbType3.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select A Data Type, 3");
+                    return;
+                }
+
+                valueType[2] = (Int16)cbType3.SelectedIndex;
+
+                if (cbOffsetAdd3.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select if value is offset or memory address, 3");
+                    return;
+                }
+
+                offsetMemAdd[2] = cbOffsetAdd3.SelectedIndex;
+
+                if (tbRangeMin3.Text.Length == 0 || tbRangeMax3.Text.Length == 0)
+                {
+                    MessageBox.Show("Range 3 is Invalid");
+                    return;
+                }
+
+                rangeHasError = false;
+                switch (cbType3.SelectedIndex)
+                {
+                    case 0:
+                        try
+                        {
+                            int16Range[2, 0] = Convert.ToInt16(tbRangeMin3.Text);
+                            int16Range[2, 1] = Convert.ToInt16(tbRangeMax3.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 1:
+                        try
+                        {
+                            int32Range[2, 0] = Convert.ToInt32(tbRangeMin3.Text);
+                            int32Range[2, 1] = Convert.ToInt32(tbRangeMax3.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 2:
+                        try
+                        {
+                            int64Range[2, 0] = Convert.ToInt64(tbRangeMin3.Text);
+                            int64Range[2, 1] = Convert.ToInt64(tbRangeMax3.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 3:
+                        try
+                        {
+                            doubleRange[2, 0] = Convert.ToDouble(tbRangeMin3.Text);
+                            doubleRange[2, 1] = Convert.ToDouble(tbRangeMax3.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 4:
+                        try
+                        {
+                            singleRange[2, 0] = Convert.ToSingle(tbRangeMin3.Text);
+                            singleRange[2, 1] = Convert.ToSingle(tbRangeMax3.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    default:
+                        rangeHasError = true;
+                        break;
+                }
+
+                if (rangeHasError == true)
+                {
+                    MessageBox.Show("Range 3 is Invalid");
+                    return;
+                }
+            }
+
+            //------------//
+            // Section 4 //
+            //-----------//
+
+            if (checkActive4.Checked)
+            {
+
+                if (cbWhen4.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select the 'When' for 4");
+                    return;
+                }
+
+                whenVals[3] = returnWhenVal(3);
+
+                // If when equals 'on state'
+                if (whenVals[3] == 4)
+                {
+                    Int16 stateStatus = setStateArray(3);
+
+                    if (stateStatus != 0)
+                    {
+                        MessageBox.Show("You have state selected for 4, but the state list is not valid");
+                        resetStateCount();
+                        return;
+                    }
+                }
+
+                if (tbMemory4.Text.Length > 0)
+                {
+                    try
+                    {
+                        String tempString = tbMemory4.Text.ToUpper();
+
+                        // Just incase it has a hex delim
+                        tempString = tempString.Replace("0X", "");
+                        memoryAddress[3] = Convert.ToInt64(tempString, 16);
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Memory Address Invalid, 4");
+                        return;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Memory Address Invalid, 4");
+                    return;
+                }
+
+                if (cbType4.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select A Data Type, 4");
+                    return;
+                }
+
+                valueType[3] = (Int16)cbType4.SelectedIndex;
+
+                if (cbOffsetAdd4.SelectedIndex == -1)
+                {
+                    MessageBox.Show("Select if value is offset or memory address, 4");
+                    return;
+                }
+
+                offsetMemAdd[3] = cbOffsetAdd4.SelectedIndex;
+
+                if (tbRangeMin4.Text.Length == 0 || tbRangeMax4.Text.Length == 0)
+                {
+                    MessageBox.Show("Range 4 is Invalid");
+                    return;
+                }
+
+                rangeHasError = false;
+                switch (cbType4.SelectedIndex)
+                {
+                    case 0:
+                        try
+                        {
+                            int16Range[3, 0] = Convert.ToInt16(tbRangeMin4.Text);
+                            int16Range[3, 1] = Convert.ToInt16(tbRangeMax4.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 1:
+                        try
+                        {
+                            int32Range[3, 0] = Convert.ToInt32(tbRangeMin4.Text);
+                            int32Range[3, 1] = Convert.ToInt32(tbRangeMax4.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 2:
+                        try
+                        {
+                            int64Range[3, 0] = Convert.ToInt64(tbRangeMin4.Text);
+                            int64Range[3, 1] = Convert.ToInt64(tbRangeMax4.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 3:
+                        try
+                        {
+                            doubleRange[3, 0] = Convert.ToDouble(tbRangeMin4.Text);
+                            doubleRange[3, 1] = Convert.ToDouble(tbRangeMax4.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    case 4:
+                        try
+                        {
+                            singleRange[3, 0] = Convert.ToSingle(tbRangeMin4.Text);
+                            singleRange[3, 1] = Convert.ToSingle(tbRangeMax4.Text);
+                        }
+                        catch
+                        {
+                            rangeHasError = true;
+                        }
+                        break;
+                    default:
+                        rangeHasError = true;
+                        break;
+                }
+
+                if (rangeHasError == true)
+                {
+                    MessageBox.Show("Range 4 is Invalid");
+                    return;
+                }
+            }
+
             Properties.Settings.Default.Save();
 
             // If we made it this far, we're all good to start.
@@ -725,48 +1972,214 @@ namespace VRfeedback
             String loadingDir = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().CodeBase).Replace("file:\\", "") + "\\applications\\";
             if(File.Exists(loadingDir + Filename))
             {
-                
+                Int32 lineNumber = 0;
                 foreach (string line in File.ReadLines(loadingDir + Filename))
                 {
                     //fileDelim
                     String[] fileData = line.Split(fileDelim);
 
-                    if(fileData.Length == 6)
+                    if ((fileData.Length == 7 && lineNumber > 0) || (lineNumber == 0 && fileData.Length == 2))
                     {
                         Properties.Settings.Default.fileToLoad = Filename;
                         Properties.Settings.Default.Save();
                         // File order:
-                        // memory address, type, range min, range max, process name, bitsize
-                        tbMemory.Text = fileData[0];
+                        // process name, bitsize
+                        // memory address/offset, type, range min, range max, offset or address bool, when to send, state string (if used, else an empty string works)
 
-                        Int32 typeIndex = 0;
-
-                        try
+                        if (lineNumber == 0)
                         {
-                            typeIndex = Convert.ToInt32(fileData[1]);
+
+                            tbProcessName.Text = fileData[0].Trim();
+
+                            try
+                            {
+                                Int32 bitSizeVal = 0;
+                                bitSizeVal = Convert.ToInt32(fileData[1]);
+                                cbSize.SelectedIndex = bitSizeVal;
+                            }
+                            catch
+                            {
+                                cbSize.SelectedIndex = 0;
+                            }
+
                         }
-                        catch
+                        else if(lineNumber == 1)
                         {
-                            // Don't care
+                            tbMemory1.Text = fileData[0];
+
+                            try
+                            {
+                                Int32 typeIndex = 0;
+                                typeIndex = Convert.ToInt32(fileData[1]);
+                                cbType1.SelectedIndex = typeIndex;
+                            }
+                            catch
+                            {
+                                cbType1.SelectedIndex = 0;
+                            }
+
+                            tbRangeMin1.Text = fileData[2];
+                            tbRangeMax1.Text = fileData[3];
+
+                            try
+                            {
+                                Int32 offsetAddressVal = 0;
+                                offsetAddressVal = Convert.ToInt32(fileData[4]);
+                                cbOffsetAdd1.SelectedIndex = offsetAddressVal;
+                            }
+                            catch
+                            {
+                                cbOffsetAdd1.SelectedIndex = 0;
+                            }
+
+                            try
+                            {
+                                Int32 WhenVal = 0;
+                                WhenVal = Convert.ToInt32(fileData[5]);
+                                cbWhen1.SelectedIndex = WhenVal;
+                            }
+                            catch
+                            {
+                                cbWhen1.SelectedIndex = 0;
+                            }
+
+                            tbStateList1.Text = fileData[6];
+
+                            checkActive1.Checked = true;
+
                         }
-
-                        cbType.SelectedIndex = typeIndex;
-                        tbRangeMin.Text = fileData[2];
-                        tbRangeMax.Text = fileData[3];
-
-                        tbProcessName.Text = fileData[4].Trim();
-
-                        Int32 bitSizeVal = 0;
-                        try
+                        else if(lineNumber == 2)
                         {
-                            bitSizeVal = Convert.ToInt32(fileData[5]);
-                        }
-                        catch
-                        {
-                            // Don't care
-                        }
+                            tbMemory2.Text = fileData[0];
 
-                        cbSize.SelectedIndex = bitSizeVal;
+                            try
+                            {
+                                Int32 typeIndex = 0;
+                                typeIndex = Convert.ToInt32(fileData[1]);
+                                cbType2.SelectedIndex = typeIndex;
+                            }
+                            catch
+                            {
+                                cbType2.SelectedIndex = 0;
+                            }
+
+                            tbRangeMin2.Text = fileData[2];
+                            tbRangeMax2.Text = fileData[3];
+
+                            try
+                            {
+                                Int32 offsetAddressVal = 0;
+                                offsetAddressVal = Convert.ToInt32(fileData[4]);
+                                cbOffsetAdd2.SelectedIndex = offsetAddressVal;
+                            }
+                            catch
+                            {
+                                cbOffsetAdd2.SelectedIndex = 0;
+                            }
+
+                            try
+                            {
+                                Int32 WhenVal = 0;
+                                WhenVal = Convert.ToInt32(fileData[5]);
+                                cbWhen2.SelectedIndex = WhenVal;
+                            }
+                            catch
+                            {
+                                cbWhen1.SelectedIndex = 0;
+                            }
+
+                            tbStateList2.Text = fileData[6];
+
+                            checkActive2.Checked = true;
+                        }
+                        else if(lineNumber == 3)
+                        {
+                            tbMemory3.Text = fileData[0];
+
+                            try
+                            {
+                                Int32 typeIndex = 0;
+                                typeIndex = Convert.ToInt32(fileData[1]);
+                                cbType3.SelectedIndex = typeIndex;
+                            }
+                            catch
+                            {
+                                cbType3.SelectedIndex = 0;
+                            }
+
+                            tbRangeMin3.Text = fileData[2];
+                            tbRangeMax3.Text = fileData[3];
+
+                            try
+                            {
+                                Int32 offsetAddressVal = 0;
+                                offsetAddressVal = Convert.ToInt32(fileData[4]);
+                                cbOffsetAdd3.SelectedIndex = offsetAddressVal;
+                            }
+                            catch
+                            {
+                                cbOffsetAdd3.SelectedIndex = 0;
+                            }
+
+                            try
+                            {
+                                Int32 WhenVal = 0;
+                                WhenVal = Convert.ToInt32(fileData[5]);
+                                cbWhen3.SelectedIndex = WhenVal;
+                            }
+                            catch
+                            {
+                                cbWhen1.SelectedIndex = 0;
+                            }
+
+                            tbStateList3.Text = fileData[6];
+
+                            checkActive3.Checked = true;
+                        }
+                        else if(lineNumber == 4)
+                        {
+                            tbMemory4.Text = fileData[0];
+
+                            try
+                            {
+                                Int32 typeIndex = 0;
+                                typeIndex = Convert.ToInt32(fileData[1]);
+                                cbType4.SelectedIndex = typeIndex;
+                            }
+                            catch
+                            {
+                                cbType4.SelectedIndex = 0;
+                            }
+
+                            tbRangeMin4.Text = fileData[2];
+                            tbRangeMax4.Text = fileData[3];
+
+                            try
+                            {
+                                Int32 offsetAddressVal = 0;
+                                offsetAddressVal = Convert.ToInt32(fileData[4]);
+                                cbOffsetAdd4.SelectedIndex = offsetAddressVal;
+                            }
+                            catch
+                            {
+                                cbOffsetAdd4.SelectedIndex = 0;
+                            }
+
+                            try
+                            {
+                                Int32 WhenVal = 0;
+                                WhenVal = Convert.ToInt32(fileData[5]);
+                                cbWhen4.SelectedIndex = WhenVal;
+                            }
+                            catch
+                            {
+                                cbWhen1.SelectedIndex = 0;
+                            }
+
+                            tbStateList4.Text = fileData[6];
+
+                            checkActive4.Checked = true;
+                        }
 
                         lFileLoaded.Text = Filename;
                     }
@@ -776,17 +2189,12 @@ namespace VRfeedback
                         lFileLoaded.Text = "--";
                         Properties.Settings.Default.fileToLoad = "";
                         Properties.Settings.Default.Save();
+                        break;
                     }
+
+                    lineNumber++;
                 }
             }
-        }
-
-        // Did our COM ports or port count change? Save value to preferences.
-        private void cbPorts_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            Int32 portCount = cbPorts.SelectedIndex;
-            Properties.Settings.Default.portCount = portCount;
-            Properties.Settings.Default.Save();
         }
 
         private void comPortsDrop_SelectedIndexChanged(object sender, EventArgs e)
@@ -798,6 +2206,11 @@ namespace VRfeedback
         private void cbSize_SelectedIndexChanged(object sender, EventArgs e)
         {
             bitSize = (Int16)cbSize.SelectedIndex;
+        }
+
+        private void panel1_Paint(object sender, PaintEventArgs e)
+        {
+
         }
     }
 }
