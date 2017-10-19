@@ -77,10 +77,14 @@ You cannot run this application on a 32 bit machine. It is designed to read 32 b
 
 VRFeedback looks for a preset file in a subdirectory of the executable named 'applications'. The file has the following format:
 The first line must be:
+```
 process name|bitsize
+```
 
 Every line after must be:
+```
 memory address/offset|type|range min|range max|offset or address bool (0/1)|when to send|state string (if used, else an empty string works)
+```
 
 ```
 bit size: 0 = 32, 1 = 64
