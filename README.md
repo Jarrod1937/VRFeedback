@@ -115,4 +115,4 @@ I release this software under no license, nothing. You can consider it public do
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR ANYONE DISTRIBUTING THE SOFTWARE BE LIABLE FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Likewise I take no responsibility for any physical harm that may take place by whatever feedback mechanism you use. By downloading and using this software you release me (the original author) of any liability whatsoever in any civil court.
+Likewise I take no responsibility for any physical harm that may take place by whatever feedback mechanism you use. By downloading and using this software you release me (the original author) of any liability whatsoever.
