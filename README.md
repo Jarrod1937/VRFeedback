@@ -43,10 +43,20 @@ The options given are:
 And the read value is 99, then a serial event is triggered and the value of '3' is sent, as the index value of 99 is '3'.
 This allows you to track something that is a state in a game. For example, if the game character is sneaking, walking, running, laying down...etc, all may be the same variable in memory represented by different state values.
 
+# What are the value types for?
+
+We're reading raw bytes of memory. The memory address space is just full of bytes of any type and sometimes no type if the address space is uninitialized. You must select the data type to tell the application how many bytes to read and how to interpret them:
+```
+0 = Int16, 2 bytes
+1 = Int32, 4 bytes
+2 = Int64, 8 bytes
+3 = double float, 8 bytes
+4 = single float, 4 bytes
+```
 
 # What is the value range for?
 
-Since we're reading raw bytes from memory, we don't know what is in them, and sometimes not even the game does. This is because memory may contain random values until it is initialized by the game. By providing a range of valid values for health we can allow the program to avoid reading random uninitialized values that are out of range until the game sets them.
+Since we're reading raw bytes from memory, we don't know what is in them, and sometimes not even the game does. This is because memory may contain random values until it is initialized by the game. By providing a range of valid values we can allow the program to avoid reading random uninitialized values that are out of range until the game sets them.
 The range is also used for different 'when' settings. If the 'when' setting is continuous, the system maps the given range to a 4 bit int range (0-15), and sends that value via serial.
 
 # What is the bit size setting for?
