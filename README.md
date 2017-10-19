@@ -35,7 +35,7 @@ The options given are:
 
 2, On Change: A combination of on decrease and increase. Sends the relative percentage (0-10) of any change.
 
-3, Continuous: Taking the values min and max range settings, the current read value is mapped to a 4 bit int. If the range is 0-100, 0 = 0, 8 = 50, 15 = 100. This mapping is sent contiuously, and is ideal for continuous variables like temperature.
+3, Continuous: Taking the values min and max range settings, the current read value is mapped to a 4 bit int. If the range is 0-100, 0 = 0, 8 = 50, 15 = 100. This mapping is sent continuously, and is ideal for continuous variables like temperature.
 
 4, On State: A state is a single value, if the read value is equal to this state value, an event occurs. The state list is to the right, it is a comma separated list of values, each parsed as the same data type as the value being read. You can have up to 16 state values. When a state value triggers an event, the zero based index of that state in the state list is sent. For example a state list of:
 6,34,87,99,100
